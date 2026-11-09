@@ -1,0 +1,31 @@
+// Risorsa di versione del modulo Apache di zServer, variante Gesty (PRODOTTO_GESTY).
+#include "Versione.h"
+
+1 VERSIONINFO
+FILEVERSION VERSIONE_NUMERI
+PRODUCTVERSION VERSIONE_NUMERI
+FILEFLAGSMASK 0x3F
+FILEFLAGS 0x0
+FILEOS 0x4
+FILETYPE 0x2
+FILESUBTYPE 0x0
+{
+  BLOCK "StringFileInfo"
+  {
+    BLOCK "041004E4"
+    {
+      VALUE "CompanyName", "Luca Zebro\0"
+      VALUE "FileDescription", "zServer per Gesty - modulo Apache\0"
+      VALUE "FileVersion", VERSIONE_TESTO
+      VALUE "InternalName", "zServerApacheGesty\0"
+      VALUE "LegalCopyright", "Copyright (c) 2026 Luca Zebro\0"
+      VALUE "OriginalFilename", "zServerApacheGesty.dll\0"
+      VALUE "ProductName", "zServer per Gesty\0"
+      VALUE "ProductVersion", VERSIONE_TESTO
+    }
+  }
+  BLOCK "VarFileInfo"
+  {
+    VALUE "Translation", 0x0410, 1252
+  }
+}

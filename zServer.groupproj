@@ -1,0 +1,98 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{2D5E8A14-7C39-4B60-A1F3-96E0C4B7D852}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="zServer.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="zServerApache.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="zServerISAPI.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\_UnitTest\_src\zServerTests.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="zServer">
+        <MSBuild Projects="zServer.dproj"/>
+    </Target>
+    <Target Name="zServer:Clean">
+        <MSBuild Projects="zServer.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="zServer:Make">
+        <MSBuild Projects="zServer.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="zServerApache">
+        <MSBuild Projects="zServerApache.dproj"/>
+    </Target>
+    <Target Name="zServerApache:Clean">
+        <MSBuild Projects="zServerApache.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="zServerApache:Make">
+        <MSBuild Projects="zServerApache.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="zServerISAPI">
+        <MSBuild Projects="zServerISAPI.dproj"/>
+    </Target>
+    <Target Name="zServerISAPI:Clean">
+        <MSBuild Projects="zServerISAPI.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="zServerISAPI:Make">
+        <MSBuild Projects="zServerISAPI.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="zServerTests">
+        <MSBuild Projects="..\_UnitTest\_src\zServerTests.dproj"/>
+    </Target>
+    <Target Name="zServerTests:Clean">
+        <MSBuild Projects="..\_UnitTest\_src\zServerTests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="zServerTests:Make">
+        <MSBuild Projects="..\_UnitTest\_src\zServerTests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="zServer;zServerApache;zServerISAPI;zServerTests"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="zServer:Clean;zServerApache:Clean;zServerISAPI:Clean;zServerTests:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="zServer:Make;zServerApache:Make;zServerISAPI:Make;zServerTests:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+    <ItemGroup Condition="'$(BuildGroup)'=='zServer'">
+        <BuildGroupProject Include="zServerApache.dproj">
+            <ProjectGuid>{4E71C5B2-8A93-4D06-9B48-1F2C7A6D5E31}</ProjectGuid>
+            <Configurations>Gesty_Debug;Gesty_Release;WT_Debug;WT_Release</Configurations>
+            <Platforms>Win64</Platforms>
+            <Enabled>True</Enabled>
+        </BuildGroupProject>
+        <BuildGroupProject Include="zServer.dproj">
+            <ProjectGuid>{9A3CBA6E-26D3-4F88-9680-D1B662B690E0}</ProjectGuid>
+            <Configurations>Gesty_Debug;Gesty_Release;WT_Debug;WT_Release</Configurations>
+            <Platforms>Linux64;Win64</Platforms>
+            <Enabled>True</Enabled>
+        </BuildGroupProject>
+        <BuildGroupProject Include="zServerISAPI.dproj">
+            <ProjectGuid>{6B0D9F47-3C25-41A8-8E7D-5A94B2F1C806}</ProjectGuid>
+            <Configurations>Gesty_Debug;Gesty_Release;WT_Debug;WT_Release</Configurations>
+            <Platforms>Win64</Platforms>
+            <Enabled>True</Enabled>
+        </BuildGroupProject>
+        <BuildGroupProject Include="..\_UnitTest\_src\zServerTests.dproj">
+            <ProjectGuid>{3F0928D2-D563-4E8A-B3B3-9B21D81D682C}</ProjectGuid>
+            <Configurations>Debug</Configurations>
+            <Platforms>Win64</Platforms>
+            <Enabled>True</Enabled>
+        </BuildGroupProject>
+    </ItemGroup>
+</Project>

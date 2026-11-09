@@ -1,0 +1,70 @@
+# Gestione automatica dei line ending
+* text=auto
+
+# Script batch Windows: forza CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Script shell Linux/Mac: forza LF
+*.sh text eol=lf
+
+# File Delphi: forza CRLF
+*.pas text eol=crlf
+*.dfm text eol=crlf
+*.dpr text eol=crlf
+*.dpk text eol=crlf
+*.dproj text eol=crlf
+*.groupproj text eol=crlf
+*.res binary
+
+# File SQL/Firebird: forza CRLF
+*.sql text eol=crlf
+*.view text eol=crlf
+*.proc text eol=crlf
+*.trig text eol=crlf
+*.func text eol=crlf
+*.pkg text eol=crlf
+
+# File Angular/TypeScript: forza LF (ecosistema Node/Linux)
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.sass text eol=lf
+*.less text eol=lf
+*.svg text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.editorconfig text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# File binari: nessuna conversione
+*.exe binary
+*.dll binary
+*.bpl binary
+*.dcp binary
+*.dcpil binary
+*.dcu binary
+*.so binary
+*.dylib binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.bmp binary
+*.pdf binary
+*.zip binary
+*.7z binary
+*.rar binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary

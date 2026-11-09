@@ -1,0 +1,58 @@
+# ==========================================
+# GitHub Gitignore per Embarcadero Delphi (Ottimizzato)
+# ==========================================
+
+# --- FONDAMENTALI ---
+*.exe
+*.dcu
+*.~*
+*.bak
+__history/
+*.__history/
+__recovery/
+
+# --- Altri Binari e File di Compilazione ---
+*.dcp
+*.dpl
+*.bpl
+*.ap_
+*.apk
+*.deployproj
+*.dll
+*.so
+*.dylib
+
+# --- File temporanei e configurazioni locali dell'IDE ---
+*.identcache
+*.local
+*.vlb
+*.uidescription
+ModelSupport_*/
+
+# --- File di progetto specifici per utente ---
+*.dsk
+*.opt
+*.txvpck
+*.dproj.local
+
+# --- File di Log e di Debug ---
+*.log
+*.map
+*.rsm
+*.drc
+*.tds
+
+# --- Cartelle di Output Piattaforme (Mobile / Desktop) ---
+Android/
+iOSDevice*/
+iOSSimulator/
+Win32/
+Win64/
+OSX32/
+OSX64/
+*.jdbg
+*.stat
+_dcu/
+dcu/
+*.zbtmp
+Thumbs.db

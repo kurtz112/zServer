@@ -1,0 +1,311 @@
+openapi: 3.0.3
+info:
+  title: zServer - Contratto di autenticazione
+  version: "2026-10-30"
+  description: "Forma leggibile dalle macchine di 'Contratto - Autenticazione.md', che resta la fonte: ogni operazione porta in x-requisito il codice del requisito che la descrive, e le motivazioni e gli scenari stanno solo nel documento. Se i due file non concordano ha ragione il documento, e questo file va corretto. Descrive ciò che zServer promette, non ciò che oggi fa: dove il codice diverge, la divergenza sta nella sezione 'Divergenze note' del documento. Il codice sta in Core/Middleware/JWTRefresh.Middleware.pas, Core/Services/Authentication.Service.pas e Core/Controllers/Auth.Controller.pas."
+servers:
+  - url: /
+    description: "Radice di zServer (la stessa per WT e per Gesty)"
+tags:
+  - name: Autenticazione
+    description: "Accesso, rinnovo, uscita, verifica del token e cambio password"
+security:
+  - bearerAuth: []
+paths:
+  /api/auth/login:
+    post:
+      tags: [Autenticazione]
+      operationId: login
+      summary: "Accesso con nome utente e password"
+      description: "Verifica le credenziali con la procedura USR_LOGIN del prodotto, apre una sessione in USR_SESSIONI ed emette il token di accesso e quello di rinnovo. La rotta la intercetta il middleware JWT di DMVCFramework, che per le credenziali rifiutate risponde 401 senza corpo definito da zServer (stato non verificato nel codice di zServer)."
+      x-requisito: ZSRV-AUT-001
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RichiestaAccesso"
+      responses:
+        "200":
+          description: "Credenziali accettate. Se il token di rinnovo non si può registrare, la risposta ha il solo token e la sessione non si potrà rinnovare."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RispostaAccesso"
+        "401":
+          description: "Credenziali sbagliate o utente non attivo: nessun token viene emesso."
+  /api/auth/refresh:
+    post:
+      tags: [Autenticazione]
+      operationId: rinnovo
+      summary: "Rinnovo del token di accesso"
+      description: "Non richiede il token di accesso, perché di solito è scaduto. A ogni rinnovo il token di rinnovo viene sostituito: quello vecchio non vale più, e se qualcuno lo riusa zServer revoca tutti i token di rinnovo dell'utente (ZSRV-AUT-003). Gli errori di questa rotta hanno la forma { error }, diversa da quella delle altre."
+      x-requisito: ZSRV-AUT-003
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RichiestaRinnovo"
+      responses:
+        "200":
+          description: "Rinnovo riuscito: token di accesso e di rinnovo nuovi, entrambi presenti. Il token di accesso ha gli stessi claim del login (ZSRV-AUT-002), con la stessa sessione."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RispostaRinnovo"
+        "400":
+          description: "Corpo non JSON ('Body JSON non valido') o refresh_token mancante ('refresh_token obbligatorio')."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErroreRinnovo"
+        "401":
+          description: "Token di rinnovo sconosciuto ('Refresh token non valido'), scaduto ('Sessione scaduta, effettua nuovamente il login') o già usato ('Sessione invalidata per motivi di sicurezza, effettua nuovamente il login')."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErroreRinnovo"
+        "403":
+          description: "Utente non più attivo ('Utente non attivo')."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErroreRinnovo"
+        "500":
+          description: "Errore imprevisto ('Errore interno di autenticazione')."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErroreRinnovo"
+  /api/auth/logout:
+    post:
+      tags: [Autenticazione]
+      operationId: uscita
+      summary: "Uscita dalla sessione corrente"
+      description: "Revoca il token di rinnovo e chiude la sessione del token di accesso con USR_LOGOUT. Risponde sempre 200: un'uscita non deve fallire. Il corpo può essere vuoto e l'intestazione Authorization può mancare o portare un token scaduto: zServer fa quello che può."
+      x-requisito: ZSRV-AUT-004
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RichiestaUscita"
+      responses:
+        "200":
+          description: "Uscita effettuata."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RispostaUscita"
+  /api/auth/logout-all:
+    post:
+      tags: [Autenticazione]
+      operationId: uscitaDaTuttiIDispositivi
+      summary: "Uscita da tutti i dispositivi"
+      description: "Revoca tutti i token di rinnovo dell'utente del token di accesso. Nessuna applicazione la usa ancora."
+      x-requisito: ZSRV-AUT-005
+      responses:
+        "200":
+          description: "Token di rinnovo revocati. Il corpo non è definito dal contratto."
+        "401":
+          description: "Token assente, non valido o senza user_id."
+  /api/auth/validate:
+    get:
+      tags: [Autenticazione]
+      operationId: verificaToken
+      summary: "Verifica del token di accesso"
+      description: "Restituisce l'identità che il token porta: serve al client per decidere cosa mostrare."
+      x-requisito: ZSRV-AUT-006
+      responses:
+        "200":
+          description: "Token valido."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RispostaVerifica"
+        "401":
+          description: "Token assente, scaduto o non valido."
+  /api/auth/password:
+    post:
+      tags: [Autenticazione]
+      operationId: cambioPassword
+      summary: "Cambio della password dell'utente collegato"
+      description: "Utente e sessione si prendono dal token, mai dal corpo: si cambia solo la propria password. Vale per WT e per Gesty. Il rifiuto per i metodi di verifica D (dominio) e N (nessuna verifica) lo fa zServer prima di chiamare la procedura."
+      x-requisito: ZSRV-AUT-008
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RichiestaCambioPassword"
+      responses:
+        "200":
+          description: "Password cambiata: vale dal login successivo; la sessione e i token già emessi restano validi."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RispostaCambioPassword"
+        "400":
+          description: "Corpo non valido, password vuote, password attuale sbagliata, utente non valido o non attivo, oppure utente con metodo di verifica D o N. I testi di message sono nella tabella di ZSRV-AUT-008."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErroreConMessaggio"
+        "401":
+          description: "Token assente, scaduto o non valido."
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Token di accesso emesso dal login o dal rinnovo."
+  schemas:
+    RichiestaAccesso:
+      type: object
+      required: [jwtusername, jwtpassword]
+      properties:
+        jwtusername:
+          type: string
+        jwtpassword:
+          type: string
+    RispostaAccesso:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: "Token di accesso (JWT): claim in ClaimTokenAccesso."
+        refresh_token:
+          type: string
+          description: "Token di rinnovo. Manca solo se la sua registrazione è fallita."
+    RichiestaRinnovo:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+    RispostaRinnovo:
+      type: object
+      required: [token, refresh_token]
+      properties:
+        token:
+          type: string
+        refresh_token:
+          type: string
+    ErroreRinnovo:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    RichiestaUscita:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+    RispostaUscita:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          enum: ["Logout effettuato"]
+    RispostaVerifica:
+      type: object
+      required: [success, user_id, id_sessione, username, nominativo, ruolo]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        user_id:
+          type: integer
+          format: int64
+        id_sessione:
+          type: integer
+          format: int64
+        username:
+          type: string
+        nominativo:
+          type: string
+        ruolo:
+          type: string
+    RichiestaCambioPassword:
+      type: object
+      required: [oldPassword, newPassword]
+      properties:
+        oldPassword:
+          type: string
+        newPassword:
+          type: string
+    RispostaCambioPassword:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+    ErroreConMessaggio:
+      type: object
+      required: [message]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        status:
+          type: integer
+    ClaimTokenAccesso:
+      type: object
+      description: "Contenuto del token di accesso (ZSRV-AUT-002): non è un corpo di richiesta o di risposta, ma il payload del JWT. Ha gli stessi claim al login e al rinnovo. Non contiene displayname né role."
+      required: [iss, aud, sub, user_id, id_sessione, username, roles, nominativo, ruolo, tipo_user, admin_user, iat, nbf, exp]
+      properties:
+        iss:
+          type: string
+        aud:
+          type: string
+        sub:
+          type: string
+        user_id:
+          type: integer
+          format: int64
+        id_sessione:
+          type: integer
+          format: int64
+        username:
+          type: string
+        roles:
+          type: string
+          description: "Ruoli separati da virgola: sempre user, poi il ruolo del prodotto se c'è, poi admin se l'utente è amministratore."
+        nominativo:
+          type: string
+        ruolo:
+          type: string
+        tipo_user:
+          type: string
+          description: "Stesso valore di ruolo, emesso per il portale di Gesty."
+        admin_user:
+          type: string
+          enum: ["True", "False"]
+        data_scadenza_password:
+          type: string
+          format: date
+        host_ldap:
+          type: string
+        otp:
+          type: string
+          enum: ["True", "False"]
+        iat:
+          type: integer
+        nbf:
+          type: integer
+        exp:
+          type: integer
+      not:
+        anyOf:
+          - required: [displayname]
+          - required: [role]

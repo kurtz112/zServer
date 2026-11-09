@@ -1,0 +1,42 @@
+// Risorsa di versione di zServer, variante Gesty (PRODOTTO_GESTY).
+#include "Versione.h"
+
+// Icona dell'eseguibile, quella che si vede in Esplora risorse e sulla barra
+// delle applicazioni: l'icona di zServer con quella di Gesty in basso a
+// destra. Il nome deve venire prima di MAINICON in ordine alfabetico:
+// Windows usa il primo gruppo di icone dell'eseguibile, e MAINICON sta nel
+// .res del progetto con l'icona di zServer senza prodotto (zServer.ico),
+// uguale per le due varianti. zServer.dpr la imposta anche sulla finestra
+// della console all'avvio. Le tre icone le genera genera-icone.py del lavoro
+// OUT\20261016-icona-zserver-console, in bitmap e non in PNG: brcc32 non
+// legge le immagini compresse in PNG.
+ICONA_ZSERVER ICON "zServer.Gesty.ico"
+
+1 VERSIONINFO
+FILEVERSION VERSIONE_NUMERI
+PRODUCTVERSION VERSIONE_NUMERI
+FILEFLAGSMASK 0x3F
+FILEFLAGS 0x0
+FILEOS 0x4
+FILETYPE 0x1
+FILESUBTYPE 0x0
+{
+  BLOCK "StringFileInfo"
+  {
+    BLOCK "041004E4"
+    {
+      VALUE "CompanyName", "Luca Zebro\0"
+      VALUE "FileDescription", "zServer per Gesty\0"
+      VALUE "FileVersion", VERSIONE_TESTO
+      VALUE "InternalName", "zServerGesty\0"
+      VALUE "LegalCopyright", "Copyright (c) 2026 Luca Zebro\0"
+      VALUE "OriginalFilename", "zServerGesty.exe\0"
+      VALUE "ProductName", "zServer per Gesty\0"
+      VALUE "ProductVersion", VERSIONE_TESTO
+    }
+  }
+  BLOCK "VarFileInfo"
+  {
+    VALUE "Translation", 0x0410, 1252
+  }
+}

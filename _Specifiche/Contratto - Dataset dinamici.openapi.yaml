@@ -1,0 +1,463 @@
+openapi: 3.0.3
+info:
+  title: zServer - Contratto dei dataset dinamici
+  version: "2026-10-30"
+  description: "Forma leggibile dalle macchine di 'Contratto - Dataset dinamici.md', che resta la fonte: ogni operazione porta in x-requisito il codice del requisito che la descrive, e le motivazioni e gli scenari stanno solo nel documento. Se i due file non concordano ha ragione il documento, e questo file va corretto. Descrive ciò che zServer promette: dove il codice diverge, x-divergenze rimanda ai codici della sezione 'Divergenze note' del documento. Restano fuori l'editor dei metadati /api/meta/* e le modifiche in loco dei metadati (PATCH /api/data/{dataset}/metadata/fields e /settings). Il codice sta in Core/Controllers/DynamicDataset.Controller.pas, Core/Utils/DevExtremeHelper.pas e Core/Utils/FiredacHelper.pas."
+servers:
+  - url: /
+    description: "Radice di zServer (la stessa per WT e per Gesty)"
+tags:
+  - name: Dataset dinamici
+    description: "Metadati, letture, scritture e procedure esposte, per dataset registrato in BASE_WEB_DATASETS"
+security:
+  - bearerAuth: []
+paths:
+  /api/data/{dataset}/metadata:
+    get:
+      tags: [Dataset dinamici]
+      operationId: metadatiDataset
+      summary: "Metadati del dataset"
+      description: "Prima di leggere i metadati zServer legge la configurazione del dataset e ne verifica l'autorizzazione come per le righe. Restituisce il JSON di BASE_WEB.LOAD_DATASET_METADATA senza le SQL del dataset (sqlSelect, sqlCount, sqlInsert, sqlUpdate, sqlDelete), che il client non ha mai bisogno di leggere."
+      x-requisito: ZSRV-DSD-002
+      x-divergenze: [DIV-DSD-7]
+      parameters:
+        - $ref: "#/components/parameters/Dataset"
+      responses:
+        "200":
+          description: "Metadati del dataset."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadatiDataset"
+        "400":
+          description: "Nome del dataset vuoto. Testo semplice: datasetId obbligatorio."
+          content:
+            text/plain:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/NonAutenticato"
+        "403":
+          $ref: "#/components/responses/NonAutorizzato"
+        "404":
+          description: "Dataset non registrato in BASE_WEB_DATASETS (JSON, message 'Dataset \"<nome>\" non trovato') oppure registrato ma senza metadati (testo semplice 'Nessun metadata per dataset: <nome>')."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Errore"
+            text/plain:
+              schema:
+                type: string
+        "500":
+          description: "JSON dei metadati non valido (testo semplice 'JSON metadata non valido') o errore imprevisto (ZSRV-DSD-014)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Errore"
+            text/plain:
+              schema:
+                type: string
+  /api/data/{dataset}:
+    get:
+      tags: [Dataset dinamici]
+      operationId: leggiRighe
+      summary: "Lettura delle righe"
+      description: "Opzioni di DevExtreme nella riga dell'indirizzo, più i parametri propri del dataset (ZSRV-DSD-006): ogni parametro con il nome di un segnaposto :NOME della SQL del dataset si manda con quel nome, e quelli riservati (ID_SESSIONE, USER_ID, ...) sono ignorati. I valori delle righe sono numeri, booleani e null con il loro tipo, date e ore come testo ISO 8601 con il fuso del server, BLOB e MEMO in Base64."
+      x-requisito: ZSRV-DSD-003
+      x-divergenze: [DIV-DSD-8, DIV-DSD-9]
+      parameters:
+        - $ref: "#/components/parameters/Dataset"
+        - name: filter
+          in: query
+          required: false
+          description: "Filtro nel formato di DevExtreme, come testo JSON (ZSRV-DSD-004). Un valore che non è un elenco JSON viene ignorato."
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: "Ordinamento nel formato di DevExtreme, per esempio [{\"selector\":\"CAMPO\",\"desc\":false}]. Ogni selettore deve essere una colonna della SELECT (ZSRV-DSD-005)."
+          schema:
+            type: string
+        - name: skip
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - name: take
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - name: requireTotalCount
+          in: query
+          required: false
+          description: "Con true la risposta porta totalCount e X-Total-Count; senza, X-Total-Count vale -1."
+          schema:
+            type: boolean
+        - name: group
+          in: query
+          required: false
+          description: "Raggruppamento di DevExtreme: zServer raggruppa solo sul primo selettore, in memoria, sulla sola pagina letta."
+          schema:
+            type: string
+        - name: select
+          in: query
+          required: false
+          description: "Letto e ignorato: la risposta porta sempre tutte le colonne della SELECT."
+          schema:
+            type: string
+        - name: searchExpr
+          in: query
+          required: false
+          description: "Un nome di colonna oppure un elenco JSON di nomi; una condizione per campo, unite da OR (da AND per notcontains e <>)."
+          schema:
+            type: string
+        - name: searchOperation
+          in: query
+          required: false
+          description: "Predefinito contains, anche per un valore sconosciuto."
+          schema:
+            type: string
+            enum: [contains, notcontains, startswith, endswith, "=", "<>"]
+        - name: searchValue
+          in: query
+          required: false
+          description: "Un valore vuoto non filtra niente."
+          schema:
+            type: string
+        - name: belfiore
+          in: query
+          required: false
+          description: "Comune per il segnaposto :##BELFIORE, verificato fra quelli abilitati dell'utente; vuoto vale NULL."
+          schema:
+            type: string
+        - name: idAzienda
+          in: query
+          required: false
+          description: "Azienda per il segnaposto :##ID_AZIENDA, verificata fra quelle abilitate; assente o 0 vale NULL."
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Righe del dataset."
+          headers:
+            X-Total-Count:
+              description: "Stesso conteggio di totalCount, oppure -1 se non richiesto."
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RigheDataset"
+        "401":
+          $ref: "#/components/responses/NonAutenticato"
+        "403":
+          $ref: "#/components/responses/NonAutorizzato"
+        "404":
+          $ref: "#/components/responses/DatasetNonTrovato"
+        "500":
+          $ref: "#/components/responses/ErroreInterno"
+    post:
+      tags: [Dataset dinamici]
+      operationId: inserisciRiga
+      summary: "Inserimento di una riga"
+      description: "Corpo: oggetto JSON con le chiavi dei nomi delle colonne, in maiuscolo come le scrive Firebird. Senza SQL_INSERT zServer toglie i campi che non sono colonne scrivibili di RELATION_NAME e genera l'INSERT; con SQL_INSERT esegue quella SQL e il corpo non viene sfoltito. Conversione dei valori: null diventa NULL, un testo nella forma AAAA-MM-GG o AAAA-MM-GGThh:mm... diventa data e ora, ogni altro testo resta testo."
+      x-requisito: ZSRV-DSD-010
+      x-divergenze: [DIV-DSD-3]
+      parameters:
+        - $ref: "#/components/parameters/Dataset"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Riga"
+      responses:
+        "201":
+          description: "Riga inserita. Il corpo ha i soli parametri di uscita del comando: {} salvo una SQL_INSERT con RETURNING."
+          headers:
+            Location:
+              description: "Sempre /api/data/{dataset}."
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Riga"
+        "400":
+          $ref: "#/components/responses/RichiestaNonValida"
+        "401":
+          $ref: "#/components/responses/NonAutenticato"
+        "403":
+          $ref: "#/components/responses/NonAutorizzato"
+        "404":
+          $ref: "#/components/responses/DatasetNonTrovato"
+        "500":
+          $ref: "#/components/responses/ErroreInterno"
+  /api/data/{dataset}/{chiave}:
+    put:
+      tags: [Dataset dinamici]
+      operationId: modificaRiga
+      summary: "Modifica di una riga"
+      description: "La chiave è un valore solo, confrontato con il campo PK_FIELDS. Risponde 200 anche se nessuna riga corrisponde (fuori dal perimetro: 404 'Record non trovato.', ZSRV-DSD-009). Un corpo con il solo campo chiave fa rispondere 500."
+      x-requisito: ZSRV-DSD-011
+      x-divergenze: [DIV-DSD-2]
+      parameters:
+        - $ref: "#/components/parameters/Dataset"
+        - $ref: "#/components/parameters/Chiave"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Riga"
+      responses:
+        "200":
+          description: "Riga modificata. Il corpo ha i soli parametri di uscita del comando: {} salvo una SQL_UPDATE con RETURNING."
+          headers:
+            Location:
+              description: "Sempre /api/data/{dataset}."
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Riga"
+        "400":
+          $ref: "#/components/responses/RichiestaNonValida"
+        "401":
+          $ref: "#/components/responses/NonAutenticato"
+        "403":
+          $ref: "#/components/responses/NonAutorizzato"
+        "404":
+          description: "Dataset non registrato, oppure riga di un comune non abilitato per l'utente ('Record non trovato.': con 403 chi prova le chiavi saprebbe quali esistono)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Errore"
+        "500":
+          $ref: "#/components/responses/ErroreInterno"
+    delete:
+      tags: [Dataset dinamici]
+      operationId: cancellaRiga
+      summary: "Cancellazione di una riga"
+      description: "Esegue SQL_DELETE con :KEY legato alla chiave, oppure DELETE FROM la tabella WHERE la chiave. Risponde 204 anche quando la chiave non corrisponde a nessuna riga, salvo fuori dal perimetro (404)."
+      x-requisito: ZSRV-DSD-012
+      x-divergenze: [DIV-DSD-2]
+      parameters:
+        - $ref: "#/components/parameters/Dataset"
+        - $ref: "#/components/parameters/Chiave"
+      responses:
+        "204":
+          description: "Riga cancellata o inesistente. Nessun corpo."
+        "401":
+          $ref: "#/components/responses/NonAutenticato"
+        "403":
+          $ref: "#/components/responses/NonAutorizzato"
+        "404":
+          description: "Dataset non registrato, oppure riga di un comune non abilitato per l'utente ('Record non trovato.')."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Errore"
+        "500":
+          $ref: "#/components/responses/ErroreInterno"
+  /api/data/sp/{procedura}:
+    post:
+      tags: [Dataset dinamici]
+      operationId: eseguiProcedura
+      summary: "Esecuzione di una procedura esposta"
+      description: "Si esegue solo una procedura elencata in BASE_WEB_PROCEDURE con ATTIVA vera. Il nome è un identificatore Firebird senza virgolette, oppure PACKAGE.PROCEDURA. Ogni valore arriva alla procedura come testo; un parametro che la procedura non ha viene ignorato; outputParams e dataType, che zNg manda, non vengono letti. L'esecuzione è confermata con un commit."
+      x-requisito: ZSRV-DSD-013
+      parameters:
+        - name: procedura
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RichiestaProcedura"
+      responses:
+        "200":
+          description: "Oggetto che ha per chiavi i parametri di uscita della procedura."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Riga"
+        "400":
+          $ref: "#/components/responses/RichiestaNonValida"
+        "401":
+          $ref: "#/components/responses/NonAutenticato"
+        "403":
+          description: "'Procedura non disponibile.' per un nome non valido, una procedura non elencata o non attiva (e per una che non esiste: così chi prova i nomi non scopre quali esistono), oppure il messaggio di USR_AUTHORIZATION_CHECK se manca il permesso."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Errore"
+        "500":
+          $ref: "#/components/responses/ErroreInterno"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Token di accesso del login o del rinnovo (Contratto - Autenticazione, ZSRV-AUT-002). Tutte le rotte lo richiedono."
+  parameters:
+    Dataset:
+      name: dataset
+      in: path
+      required: true
+      description: "Nome del dataset nella forma Modulo.Nome (per esempio Agora.ConfigTipologieCampi): una riga di BASE_WEB_DATASETS, legato come parametro e mai composto nella SQL."
+      schema:
+        type: string
+    Chiave:
+      name: chiave
+      in: path
+      required: true
+      description: "Valore del campo PK_FIELDS. Un valore solo: la chiave composta non è gestita."
+      schema:
+        type: string
+  responses:
+    NonAutenticato:
+      description: "Token assente, scaduto o non valido. Con la sessione scaduta il corpo è nella forma Errore con message 'Sessione scaduta, effettuare nuovamente il login'; negli altri casi lo decide il middleware JWT e il contratto non definisce il corpo."
+    NonAutorizzato:
+      description: "Permesso mancante (message di USR_AUTHORIZATION_CHECK), scrittura non ammessa dal dataset (CAN_INSERT, CAN_UPDATE o CAN_DELETE falso), comune o azienda non abilitati."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Errore"
+    DatasetNonTrovato:
+      description: "Dataset non registrato in BASE_WEB_DATASETS: 'Dataset \"<nome>\" non trovato'."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Errore"
+    RichiestaNonValida:
+      description: "Corpo che non è un oggetto JSON, errore di Firebird (messaggio tradotto), inserimento senza BELFIORE in un dataset per comune."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Errore"
+    ErroreInterno:
+      description: "Campo, filtro o ordinamento non ammesso, oppure qualunque altro errore: message 'Si è verificato un errore imprevisto'."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Errore"
+  schemas:
+    Errore:
+      type: object
+      description: "Forma di ogni errore (ZSRV-DSD-014), salvo i tre casi in testo semplice della rotta dei metadati."
+      required: [success, message, status]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        message:
+          type: string
+        status:
+          type: integer
+    Riga:
+      type: object
+      description: "Oggetto JSON le cui chiavi sono i nomi delle colonne come li restituisce Firebird, di norma in maiuscolo."
+      additionalProperties: true
+    RigheDataset:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          description: "Righe della pagina. Con il raggruppamento ogni elemento è { key, items, count } e il raggruppamento vale solo sul primo selettore."
+          items:
+            type: object
+            additionalProperties: true
+        totalCount:
+          type: integer
+          description: "Solo con requireTotalCount=true. Con il raggruppamento è il numero di righe della pagina letta."
+        groupCount:
+          type: integer
+          description: "Solo con il raggruppamento, se c'è almeno un gruppo."
+    RichiestaProcedura:
+      type: object
+      required: [inputParams]
+      properties:
+        inputParams:
+          type: array
+          items:
+            type: object
+            required: [name]
+            properties:
+              name:
+                type: string
+              value: {}
+        outputParams:
+          type: array
+          description: "Mandato da zNg, ma non letto da zServer."
+          items:
+            type: object
+            additionalProperties: true
+    MetadatiDataset:
+      type: object
+      required: [datasetId, fields]
+      description: "Prodotto da BASE_WEB.LOAD_DATASET_METADATA. Non contiene mai le SQL del dataset."
+      properties:
+        datasetId:
+          type: string
+        primaryKey:
+          type: string
+        relationName:
+          type: string
+        caption:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/CampoMetadati"
+        gridSettings:
+          type: object
+          additionalProperties: true
+        formSettings:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+      not:
+        anyOf:
+          - required: [sqlSelect]
+          - required: [sqlCount]
+          - required: [sqlInsert]
+          - required: [sqlUpdate]
+          - required: [sqlDelete]
+    CampoMetadati:
+      type: object
+      required: [dataField]
+      properties:
+        dataField:
+          type: string
+        caption:
+          type: string
+        dataType:
+          type: string
+        isPrimaryKey:
+          type: boolean
+        column:
+          type: object
+          additionalProperties: true
+        control:
+          type: object
+          additionalProperties: true
+        lookup:
+          type: object
+          additionalProperties: true
+        picklist:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
